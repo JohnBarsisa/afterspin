@@ -1,0 +1,67 @@
+/* Run with a server on port 5190, Playwright installed and Chromium available. */
+const {chromium}=require('playwright');
+const {strict:a}=require('node:assert');
+const path=require('node:path');
+(async()=>{
+ const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox']});
+ try{
+ const desk=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true,timezoneId:'Europe/London'});
+ const page=await desk.newPage();const errors=[];page.on('pageerror',x=>errors.push(String(x)));page.on('response',r=>{if(r.status()>=400)errors.push(r.status()+' '+r.url())});
+ await page.goto(process.env.AFTERSPIN_URL||'http://127.0.0.1:5190/',{waitUntil:'networkidle'});
+ a.equal(await page.title(),'Afterspin — Your listening, on repeat');
+ a(await page.locator('.ribbon').evaluate(x=>x.complete&&x.naturalWidth>0));
+ if(process.env.AFTERSPIN_SHOTS)await page.screenshot({path:process.env.AFTERSPIN_SHOTS+'/afterspin-desktop.png',animations:'disabled'});
+ const plays=()=>page.locator('.stat').nth(1).locator('strong').textContent();
+ const base=await plays();
+ const sources=['7 days','2 months','3 months','1 year'];
+ const observed=new Set();
+ for(const name of sources){await page.getByRole('button',{name,exact:true}).click();observed.add(await plays());}
+ a.equal(observed.size,4);
+ await page.getByRole('button',{name:'1 month',exact:true}).click();
+ a.equal(await plays(),base);
+ await page.getByRole('button',{name:'Apple Music',exact:true}).click();a.notEqual(await plays(),base);
+ await page.getByRole('button',{name:'Play my recap'}).click();
+ a.equal(await page.locator('#storyStage h3').textContent(),'You hit repeat.');
+ await page.keyboard.press('ArrowRight');
+ a.match(await page.locator('#storyStatus').textContent(),/Chapter 2 of 5/);
+ if(process.env.AFTERSPIN_SHOTS)await page.locator('#storyDialog').screenshot({path:process.env.AFTERSPIN_SHOTS+'/afterspin-story.png',animations:'disabled'});
+ await page.getByRole('button',{name:'Chapter 5'}).click();
+ a.equal(await page.locator('#storyStage li').count(),5);
+ const download=page.waitForEvent('download');
+ await page.getByRole('button',{name:'Download card'}).click();
+ const exported=await download;a.equal(exported.suggestedFilename(),'afterspin-chapter-5.png');a.equal(await exported.failure(),null);
+ await page.keyboard.press('Escape');
+ await page.getByRole('button',{name:'Connect music'}).click();
+ a.equal(await page.getByRole('button',{name:'Sign in with Apple Music'}).isDisabled(),true);
+ await page.locator('#importFiles').setInputFiles(path.join(__dirname,'../fixtures/apple-history.csv'));
+ await page.getByRole('button',{name:'Import listening history'}).click();
+ await page.getByText('Loaded 3 plays.',{exact:false}).waitFor();
+ await page.getByRole('button',{name:'Close source settings'}).click();
+ a.equal(await page.locator('#sourceTag').textContent(),'IMPORTED HISTORY');
+ a.equal(await plays(),'3');
+ await page.getByRole('button',{name:'Custom',exact:true}).click();
+ await page.getByLabel('From',{exact:true}).fill('2026-11-17');
+ await page.getByLabel('To',{exact:true}).fill('2026-11-17');
+ await page.getByRole('button',{name:'Apply dates'}).click();
+ a.equal(await plays(),'1');
+ await page.getByLabel('From',{exact:true}).fill('2026-11-18');
+ await page.getByRole('button',{name:'Apply dates'}).click();
+ a.match(await page.locator('#dateError').textContent(),/valid end date/);
+ await page.getByRole('button',{name:'Spotify',exact:true}).click();
+ await page.getByRole('button',{name:'Connect music'}).click();
+ await page.locator('#importFiles').setInputFiles(path.join(__dirname,'../fixtures/spotify-history.json'));
+ await page.getByRole('button',{name:'Import listening history'}).click();
+ await page.getByText('Loaded 3 plays.',{exact:false}).waitFor();
+ await page.getByRole('button',{name:'Remove imported history'}).click();
+ await page.getByRole('button',{name:'Close source settings'}).click();
+ a.equal(await page.locator('#sourceTag').textContent(),'DEMO MODE');
+ a.deepEqual(errors,[]);
+ const mobile=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,isMobile:true,reducedMotion:'reduce'});
+ const m=await mobile.newPage();await m.goto(process.env.AFTERSPIN_URL||'http://127.0.0.1:5190/');
+ a.equal(await m.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+ a(await m.locator('.ribbon').evaluate(e=>getComputedStyle(e).animationName==='none'));
+ await m.getByRole('button',{name:'Play my recap'}).click();
+ a(await m.getByRole('button',{name:'Close recap story'}).isVisible());
+ console.log('Browser check passed: desktop + mobile, asset loading, periods, source switching, both imports, custom dates, story, PNG, and reduced motion.');
+ }finally{await browser.close()}
+})().catch(e=>{console.error(e);process.exitCode=1});
