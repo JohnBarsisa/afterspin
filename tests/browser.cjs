@@ -20,7 +20,7 @@ const path=require('node:path');
  a.equal(await page.locator('html').getAttribute('data-palette'),'forest');
  a.equal(await page.locator('html').getAttribute('data-mode'),mode);
  await page.getByRole('button',{name:'Spotify',exact:true}).click();
- await page.getByRole('link',{name:'Open Spotify Wrapped'}).waitFor();
+ await page.getByRole('link',{name:'Open Spotify Top Picks beta'}).waitFor();
  a.equal(await page.locator('input[type=password]').count(),0);
  await page.getByRole('button',{name:'Close source settings'}).click();
  await page.getByRole('button',{name:'Apple Music',exact:true}).click();

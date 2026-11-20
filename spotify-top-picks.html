@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spotify Top Picks Beta | Afterspin</title>
+<link rel="icon" href="assets/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="style.css">
+<script src="spotify-top-picks.js" defer></script>
+</head>
+<body>
+<header class="shell header"><a class="brand" href="./" aria-label="Afterspin home"><img src="assets/mark.svg" width="38" height="38" alt="">afterspin<span>.</span></a><a class="button subtle" href="./">Back to Afterspin</a></header>
+<main class="shell">
+<section class="hero landing beta-landing" aria-labelledby="beta-title">
+<div class="hero-grid" aria-hidden="true"></div>
+<img class="ribbon" src="assets/ribbon.webp" alt="" width="960" height="840">
+<div class="hero-content beta-intro">
+<div class="eyebrow"><span class="pulse" aria-hidden="true"></span> INVITE-ONLY BETA</div>
+<h1 id="beta-title">Spotify<br><em>Top Picks.</em></h1>
+<p>See the tracks and artists Spotify ranks highest for you. Afterspin doesn’t calculate or store new listening metrics from this connection.</p>
+<p id="beta-status" class="provider-note" role="status" aria-live="polite">Checking the beta connection…</p>
+<div class="provider-links"><a class="button primary" id="spotify-login" href="/oauth/spotify/login" hidden>Continue with Spotify</a><button type="button" class="button secondary" id="spotify-logout" hidden>Disconnect Spotify</button><a class="button secondary" id="spotify-alternate" href="https://afterspin-listening.jpiyady.chatgpt.site/spotify-top-picks.html" hidden>Open the hosted beta</a></div>
+</div>
+</section>
+<section class="workspace beta-results" id="spotify-results" aria-labelledby="picks-title" hidden>
+<div class="sectiontop"><div><div class="eyebrow lilac">YOUR SPOTIFY RANKINGS</div><h2 id="picks-title">Top Picks<span>.</span></h2></div></div>
+<div class="controlbar beta-filters">
+<label>Show <select id="spotify-type"><option value="tracks">Top tracks</option><option value="artists">Top artists</option></select></label>
+<label>Window <select id="spotify-range"><option value="short_term">About 4 weeks</option><option value="medium_term">About 6 months</option><option value="long_term">About 1 year</option></select></label>
+</div>
+<p class="muted">These are Spotify’s affinity rankings for an approximate date range. They’re not play counts or an exact listening log.</p>
+<p id="picks-status" role="status" aria-live="polite"></p>
+<ol id="spotify-items" class="rank-list list-card beta-list" hidden></ol>
+</section>
+</main>
+<footer class="shell footer"><p>Independent and not endorsed by Spotify. No email, playlists, or music history permissions are requested.</p><a class="quiet" href="https://open.spotify.com/" target="_blank" rel="noopener noreferrer">Data from Spotify</a></footer>
+</body>
+</html>

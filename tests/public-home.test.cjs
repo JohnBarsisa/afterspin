@@ -26,7 +26,7 @@ test('public home never creates demo stats and opens honest provider dialogs',()
  a.equal(h.$('#recap').hidden,true);
  a.equal(h.$('#summary').textContent,'');
  h.providers[0].onclick();
- a.match(h.$('#connectDetails').innerHTML,/Spotify Wrapped/);
+ a.match(h.$('#connectDetails').innerHTML,/Spotify Top Picks beta/);
  h.providers[1].onclick();
  a.match(h.$('#connectDetails').innerHTML,/Apple Music Replay/);
  a.equal(h.$('#recap').hidden,true);

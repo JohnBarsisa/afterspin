@@ -87,6 +87,14 @@ dialog{border:1px solid #604782;background:#1c152b;color:var(--ink);border-radiu
 }
 @media(max-width:360px){.header .brand img{width:27px;height:27px}.header .brand{font-size:20px}.mode-toggle{font-size:12px;padding:6px}.mode-toggle #modeIcon{display:none}#palette{max-width:99px}.provider-choice{font-size:13px;padding:8px 6px}}
 
+.beta-landing .beta-intro{max-width:710px}
+.beta-intro .provider-note{max-width:510px;font-size:15px;margin-bottom:14px}
+.beta-filters{justify-content:flex-start;gap:1.2em;padding:14px}
+.beta-filters label{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+.beta-filters select{padding:6px 30px 6px 8px;border-radius:8px;background:var(--surface2);color:var(--ink);border:1px solid var(--line)}
+.beta-list li{grid-template-columns:28px minmax(0,1fr)}
+.beta-list a:hover{text-decoration:underline}
+
 </style>
 </head>
 <body id="top">
@@ -320,7 +328,7 @@ function choose(source){
  'Request <strong>Extended Streaming History</strong> from <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noreferrer">Spotify privacy settings</a>. Unzip it and select the audio JSON files.':
  'Request Apple Media Services activity from <a href="https://privacy.apple.com/" target="_blank" rel="noreferrer">Apple Data &amp; Privacy</a>. Unzip it and select either <strong>Play Activity.csv</strong> or <strong>Play History Daily Tracks.csv</strong>.';
  $('#connectDetails').innerHTML=spotify?
- '<p class="provider-note">Connecting Spotify to Afterspin isn’t available. You can still open Spotify’s own Wrapped or import your listening history below.</p><div class="provider-links"><a class="button secondary" href="https://www.spotify.com/wrapped/" target="_blank" rel="noreferrer">Open Spotify Wrapped</a></div>':
+ '<p class="provider-note">See the tracks and artists Spotify ranks highest for you in our invite-only Top Picks beta. For play counts and custom dates, import your listening history below.</p><div class="provider-links"><a class="button secondary" href="https://afterspin-listening.jpiyady.chatgpt.site/spotify-top-picks.html">Open Spotify Top Picks beta</a></div>':
  configured?
  '<p class="provider-note">Authorize on Apple’s sign-in screen to load your latest eligible annual Replay into Afterspin.</p><div class="provider-links"><button type="button" class="button primary" id="appleAuth" disabled>Preparing Apple Music…</button></div>':
  '<p class="provider-note">Apple Music sign-in inside Afterspin isn’t set up yet. You can still sign in on Apple’s own Replay site or import your listening history below.</p><div class="provider-links"><a class="button secondary" href="https://replay.music.apple.com/" target="_blank" rel="noreferrer">Open Apple Music Replay</a></div>';

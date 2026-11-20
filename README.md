@@ -30,7 +30,8 @@ There are no runtime package dependencies for the public homepage or import expe
 ```bash
 python3 -m http.server 5190
 # http://127.0.0.1:5190/
-node --test tests/core.test.cjs tests/apple-token.test.mjs
+python3 scripts/build-sites-worker.py
+node --test tests/core.test.cjs tests/apple-token.test.mjs tests/public-home.test.cjs tests/spotify-beta.test.mjs
 ```
 
 For browser tests, start the local server, install Playwright `npm install --no-save playwright`, then run `CHROMIUM_PATH=/path/to/chromium node tests/browser.cjs`. Optionally set `AFTERSPIN_URL` to point at a deployed copy. The rendering source for the original 3D ribbon is included in [assets](assets/make-ribbon.py). See the [logo studies](assets/brand-studies.svg) or the [research, architecture and deployment notes](docs/product-notes.md).
@@ -45,7 +46,7 @@ In the repository’s **Settings → Pages**, select **Deploy from a branch**, u
 
 The public homepage has Spotify and Apple Music provider choices, light and dark modes, and five palettes. There are no sample stats on the homepage or in the recap. Recaps appear only after real history is imported or Apple Replay is returned. The appearance preference stays on the visitor’s device.
 
-**Spotify:** The provider button links to Spotify's own Wrapped and offers a local history import. Afterspin does not ask for Spotify passwords or claim to connect Spotify accounts. [Spotify’s Developer Policy](https://developer.spotify.com/policy) restricts using the platform to create derived listening metrics. Spotify has separate [rules for apps that need public account access](https://developer.spotify.com/documentation/web-api/concepts/quota-modes). Do not enable a Spotify analytics integration without the applicable permissions.
+**Spotify:** The provider button opens the invite-only Top Picks beta and offers a local history import. See the setup below. [Spotify’s Developer Policy](https://developer.spotify.com/policy) restricts using the platform to create derived listening metrics.
 
 **Apple Music:** Without developer setup, the provider button links to Apple’s official Replay and offers a local history import. The built-in authorization flow is ready for configuration and uses only Apple’s own MusicKit sign-in screen. Afterspin requests the latest eligible annual Replay, not arbitrary custom date ranges through Apple.
 
@@ -56,3 +57,16 @@ To enable Apple Music authorization:
 3. Set `appleTokenEndpoint` in `config.js` to the issuer’s HTTPS URL and redeploy. Verify with an eligible Apple Music subscriber on both mobile and desktop. Test cancellation and an account with no Replay history as well.
 
 No provider credentials or token issuer are provisioned in this repository. GitHub Pages serves static files and is not the place to store signing secrets.
+
+### Spotify Top Picks invite-only beta
+
+[Visit the hosted beta](https://afterspin-listening.jpiyady.chatgpt.site/spotify-top-picks.html). The public home and local history import remain usable without participating. The beta reads Spotify's own Top Items endpoint and shows tracks and artists with window labels of roughly 4 weeks, 6 months or 1 year. It does not calculate plays, minutes, genres, trends, or new scores from Spotify API data. Metadata links back to Spotify. Exact recap ranges are still available through your listening-history export.
+
+To activate the beta:
+
+1. Create an Afterspin application in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and select Web API when prompted. Register this exact HTTPS redirect URI: `https://afterspin-listening.jpiyady.chatgpt.site/oauth/spotify/callback`.
+2. Add the tester accounts in **Users Management**. Spotify requires a Premium app owner and currently permits up to five designated users in Development Mode. Do not publish the beta as open public sign-in.
+3. Set `SPOTIFY_CLIENT_ID` to the non-secret application Client ID and set the secret `SPOTIFY_SESSION_KEY` to a unique random 32-byte key represented as 64 hexadecimal characters. The backend uses Authorization Code with PKCE so it does not need a Spotify Client Secret. Never paste a Client Secret into browser code, GitHub, or chat.
+4. Run an end-to-end check using an allowlisted Spotify account. The only permission requested is `user-top-read`. The short-lived access token is encrypted in a Secure, HttpOnly cookie, the provider's refresh token is discarded, and the session expires within an hour. Disconnecting clears the session from the browser.
+
+The same-origin Worker is built using `python3 scripts/build-sites-worker.py`. GitHub Pages remains a static mirror and links to the hosted beta rather than trying to run OAuth itself. The beta routes are tested with simulated Spotify API responses until real credentials are configured.
