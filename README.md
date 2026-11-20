@@ -4,6 +4,10 @@ A browser-first listening recap studio. **A week, a season, a year.** Explore th
 
 **Live site:** [Afterspin on GitHub Pages](https://johnbarsisa.github.io/afterspin/)
 
+**If GitHub Pages won't open:** Open [Afterspin-Offline.html on GitHub](https://github.com/JohnBarsisa/afterspin/blob/main/Afterspin-Offline.html), use **Download raw file**, then open the downloaded HTML in your desktop browser. It includes the demo, animations, history imports and PNG export without needing a connection. Optional account integrations are disabled in this copy.
+
+**Get everything:** [Download the repository as a ZIP](https://github.com/JohnBarsisa/afterspin/archive/refs/heads/main.zip).
+
 ## Try it
 
 1. Open the site. Use both demo sources and switch between 7 days, 1 month, 2 months, 3 months, 1 year or a custom date range.
@@ -30,6 +34,8 @@ node --test tests/core.test.cjs
 ```
 
 For browser tests, start the local server, install Playwright `npm install --no-save playwright`, then run `CHROMIUM_PATH=/path/to/chromium node tests/browser.cjs`. Optionally set `AFTERSPIN_URL` to point at a deployed copy. The rendering source for the original 3D ribbon is included in [assets](assets/make-ribbon.py). See the [logo studies](assets/brand-studies.svg) or the [research, architecture and deployment notes](docs/product-notes.md).
+
+Regenerate the standalone version after changing the app with `python3 scripts/build-offline.py`.
 
 ## Pages publishing
 
