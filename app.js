@@ -2,7 +2,7 @@
 const A=window.Afterspin, $=s=>document.querySelector(s), all=s=>[...document.querySelectorAll(s)];
 const state={source:'spotify',range:'month',custom:null,choice:'spotify',hist:{},appleLive:null,slide:0,slides:[]};
 const fmt=new Intl.NumberFormat(), shortDate=new Intl.DateTimeFormat(undefined,{day:'numeric',month:'short',year:'numeric'});
-const now=new Date(), demo={spotify:A.demo('spotify',now),apple:A.demo('apple',now)};
+const now=new Date();
 const sourceNames={spotify:'Spotify',apple:'Apple Music'};
 const rangeButtons=all('[data-range]'),sourceButtons=all('[data-source]');
 const text=(s,v)=>{$(s).textContent=v};
@@ -14,7 +14,7 @@ const setPressed=(buttons,key,val)=>buttons.forEach(b=>b.setAttribute('aria-pres
 const partition=()=>A.rangeFor(state.range,now,state.custom);
 function current(){
  const window=partition(), imported=state.hist[state.source], live=state.source==='apple'&&!imported?state.appleLive:null;
- return {window,imported,live,stats:live?null:A.recap(imported?.rows||demo[state.source],window)};
+ return {window,imported,live,stats:imported?A.recap(imported.rows,window):null};
 }
 function periodLabel(r){return shortDate.format(r.start)+' – '+shortDate.format(A.addDays(r.end,-1))}
 function metric(label,value,detail){return '<article class="stat"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong><span>'+esc(detail)+'</span></article>'}
@@ -25,12 +25,14 @@ function ranking(title,items,kind,live=false){
 }
 function render(){
  const {window:r,stats:s,imported,live}=current();
+ $('#recap').hidden=!imported&&!live;
+ if(!imported&&!live){$('#summary').textContent='';return;}
  setPressed(sourceButtons,'source',state.source);
  setPressed(rangeButtons,'range',live?'':state.range);
  rangeButtons.forEach(b=>b.disabled=Boolean(live));
  $('#custom').hidden=!!live||state.range!=='custom';
- text('#sourceTag',live?'APPLE REPLAY':imported?'IMPORTED HISTORY':'DEMO MODE');
- text('#rangeText',live?'Latest eligible Replay year'+(live.year?' · '+live.year:'') : periodLabel(r)+' · '+(imported?sourceNames[state.source]+' import · file coverage '+shortDate.format(new Date(imported.rows[0].t))+' – '+shortDate.format(new Date(imported.rows.at(-1).t)):'Fictional listening history'));
+ text('#sourceTag',live?'APPLE REPLAY':'IMPORTED HISTORY');
+ text('#rangeText',live?'Latest eligible Replay year'+(live.year?' · '+live.year:'') : periodLabel(r)+' · '+sourceNames[state.source]+' history · file coverage '+shortDate.format(new Date(imported.rows[0].t))+' – '+shortDate.format(new Date(imported.rows.at(-1).t))+(imported.skipped||''));
  let html='';
  if(live){
    html='<div class="empty"><h3>Apple Music Replay</h3><p>Apple supplies these rankings for its latest eligible year. Import timestamped history to unlock your own date ranges and listening totals.</p></div><div class="dash-grid">'+ranking('Top songs',live.tracks,0,true)+ranking('Top artists',live.artists,50,true)+'</div>';
@@ -45,7 +47,11 @@ function render(){
  $('#summary').innerHTML=html;
  $('#startStory').disabled=live?!live.tracks.length&&!live.artists.length:!s.plays;
 }
-sourceButtons.forEach(b=>b.onclick=()=>{state.source=b.dataset.source;render()});
+sourceButtons.forEach(b=>b.onclick=()=>{
+ const source=b.dataset.source;
+ if(!state.hist[source]&&!(source==='apple'&&state.appleLive)){openSource(source);return;}
+ state.source=source;render();
+});
 rangeButtons.forEach(b=>b.onclick=()=>{
  state.range=b.dataset.range;
  if(state.range==='custom'&&!state.custom){const d=A.rangeFor('month',now);state.custom={start:dateISO(d.start),end:dateISO(A.addDays(d.end,-1))}}
@@ -60,18 +66,31 @@ $('#custom').onsubmit=e=>{
 };
 function choose(source){
  state.choice=source;
- setPressed(all('[data-connect]'),'connect',source);
- $('#importFiles').value='';text('#connectStatus','');
- $('#clearHistory').hidden=!state.hist[source]&&!(source==='apple'&&state.appleLive);
- const spotify=source==='spotify';
+ $('#importFiles').value='';$('#importDetails').open=false;text('#connectStatus','');
+ $('#clearHistory').hidden=!state.hist[source]&&!(source==='apple'&&(state.appleLive||appleSession));
+ const spotify=source==='spotify', configured=!!window.AFTERSPIN_CONFIG?.appleTokenEndpoint;
+ text('#connectTitle',spotify?'Spotify':'Apple Music');
+ $('#importHelp').innerHTML=spotify?
+ 'Request <strong>Extended Streaming History</strong> from <a href="https://www.spotify.com/account/privacy/" target="_blank" rel="noreferrer">Spotify privacy settings</a>. Unzip it and select the audio JSON files.':
+ 'Request Apple Media Services activity from <a href="https://privacy.apple.com/" target="_blank" rel="noreferrer">Apple Data &amp; Privacy</a>. Unzip it and select either <strong>Play Activity.csv</strong> or <strong>Play History Daily Tracks.csv</strong>.';
  $('#connectDetails').innerHTML=spotify?
- 'Request Spotify’s <strong>Extended Streaming History</strong>, unzip it, then select the audio JSON files. <a target="_blank" rel="noreferrer" href="https://www.spotify.com/account/privacy/">Open Spotify privacy settings</a>. Spotify sign-in is not enabled in this build.':
- 'Download your Apple Music play history from <a target="_blank" rel="noreferrer" href="https://privacy.apple.com/">Apple Data &amp; Privacy</a>, unzip it, then select either <strong>Play Activity.csv</strong> or <strong>Play History Daily Tracks.csv</strong>. The daily file is useful when the activity file omits artists.<br><button type="button" class="button secondary" id="appleAuth">'+(state.appleLive?'Refresh Apple Replay':'Sign in with Apple Music')+'</button><small>'+(window.AFTERSPIN_CONFIG?.appleTokenEndpoint?'Loads the latest eligible annual Replay.':'Live sign-in needs a MusicKit token endpoint. Local import is available now.')+'</small>';
- if(!spotify){$('#appleAuth').disabled=!window.AFTERSPIN_CONFIG?.appleTokenEndpoint;$('#appleAuth').onclick=connectApple;}
+ '<p class="provider-note">Connecting Spotify to Afterspin isn’t available. You can still open Spotify’s own Wrapped or import your listening history below.</p><div class="provider-links"><a class="button secondary" href="https://www.spotify.com/wrapped/" target="_blank" rel="noreferrer">Open Spotify Wrapped</a></div>':
+ configured?
+ '<p class="provider-note">Authorize on Apple’s sign-in screen to load your latest eligible annual Replay into Afterspin.</p><div class="provider-links"><button type="button" class="button primary" id="appleAuth" disabled>Preparing Apple Music…</button></div>':
+ '<p class="provider-note">Apple Music sign-in inside Afterspin isn’t set up yet. You can still sign in on Apple’s own Replay site or import your listening history below.</p><div class="provider-links"><a class="button secondary" href="https://replay.music.apple.com/" target="_blank" rel="noreferrer">Open Apple Music Replay</a></div>';
+ if(!spotify&&configured)primeAppleButton();
 }
-function openSource(){choose(state.source);$('#connectDialog').showModal()}
-$('#connectOpen').onclick=openSource;$('#sourceAction').onclick=openSource;
-all('[data-connect]').forEach(b=>b.onclick=()=>choose(b.dataset.connect));
+function openSource(source){
+ choose(source);
+ if(!$('#connectDialog').open)$('#connectDialog').showModal();
+}
+function showRecap(){
+ $('#connectDialog').close();
+ const title=$('#recapTitle');title.focus({preventScroll:true});title.scrollIntoView({block:'start'});
+}
+$('#sourceAction').onclick=()=>openSource(state.source);
+all('[data-provider]').forEach(b=>b.onclick=()=>openSource(b.dataset.provider));
+$('#privacyOpen').onclick=()=>$('#privacyDialog').showModal();
 all('[data-close]').forEach(b=>b.onclick=()=>$('#'+b.dataset.close).close());
 $('#importForm').onsubmit=async e=>{
  e.preventDefault();
@@ -99,17 +118,17 @@ $('#importForm').onsubmit=async e=>{
    state.custom={start:dateISO(first>earliest?first:earliest),end:dateISO(last)};
    $('#dateStart').value=state.custom.start;$('#dateEnd').value=state.custom.end;text('#dateError','');
   }
-  render();$('#importFiles').value='';$('#clearHistory').hidden=false;
-  if(state.choice===source)text('#connectStatus','Loaded '+n(rows.reduce((sum,row)=>sum+(row.plays||1),0))+' plays.'+(replace?' Previous import format replaced to avoid double-counting.':'')+(failed.length?' Skipped '+failed.length+' unreadable or non-music file(s).':'')+' Close this panel to explore.');
+  const skipped=failed.length?' · '+failed.length+' unreadable or non-music file(s) skipped':'';
+  state.hist[source].skipped=skipped;render();showRecap();
  }catch(err){text('#connectStatus',err.message)}finally{importer.disabled=false}
 };
 $('#clearHistory').onclick=async()=>{
  const source=state.choice;
  delete state.hist[source];
- if(source==='apple'&&state.appleLive){state.appleLive=null;try{await window.MusicKit?.getInstance().unauthorize()}catch{/* local session is already cleared */}}
+ if(source==='apple'&&(state.appleLive||appleSession)){state.appleLive=null;appleSession=false;try{await window.MusicKit?.getInstance().unauthorize()}catch{/* local session is already cleared */}}
  choose(source);render();text('#connectStatus','History removed from this tab.');
 };
-let sdkPromise;
+let sdkPromise, appleReady, appleSession=false;
 function musicKit(){
  if(window.MusicKit)return Promise.resolve(window.MusicKit);
  if(!sdkPromise)sdkPromise=new Promise((resolve,reject)=>{
@@ -121,35 +140,61 @@ function musicKit(){
  }).catch(e=>{sdkPromise=null;throw e});
  return sdkPromise;
 }
-async function connectApple(){
- const endpoint=window.AFTERSPIN_CONFIG?.appleTokenEndpoint;
- if(!endpoint)return;
- const b=$('#appleAuth');b.disabled=true;text('#connectStatus','Connecting to Apple Music…');
- try{
+function prepareApple(){
+ if(appleReady)return appleReady;
+ appleReady=(async()=>{
+  const endpoint=window.AFTERSPIN_CONFIG?.appleTokenEndpoint;
+  if(!endpoint)throw Error('Apple Music isn’t configured for this build.');
   const url=new URL(endpoint,location.href);
-  if(url.protocol!=='https:'&&url.origin!==location.origin)throw Error('Configure an HTTPS MusicKit token endpoint.');
-  const auth=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!auth.ok)throw Error('The developer token endpoint returned '+auth.status+'.');
-  const {developerToken}=await auth.json();if(typeof developerToken!=='string'||!developerToken)throw Error('No developer token was returned.');
+  if(url.protocol!=='https:'&&url.origin!==location.origin)throw Error('The Apple Music connection isn’t configured correctly.');
+  const auth=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(10000)});
+  if(!auth.ok)throw Error('Apple Music authorization is temporarily unavailable. Try again.');
+  const {developerToken}=await auth.json();
+  if(typeof developerToken!=='string'||!developerToken)throw Error('Apple Music authorization is temporarily unavailable.');
   const kit=await musicKit();
-  await kit.configure({developerToken,app:{name:'Afterspin',build:'1.0.0'}});
-  const instance=kit.getInstance();
+  await kit.configure({developerToken,app:{name:'Afterspin',build:'1.1.0'}});
+  return {developerToken,instance:kit.getInstance(),expiresAt:Date.now()+10*60*1000};
+ })().catch(err=>{appleReady=null;throw err});
+ return appleReady;
+}
+function primeAppleButton(){
+ const button=$('#appleAuth');
+ button.textContent='Preparing Apple Music…';button.disabled=true;
+ prepareApple().then(config=>{
+  if(!button.isConnected)return;
+  button.disabled=false;button.textContent='Sign in with Apple Music';
+  text('#connectStatus','');
+  button.onclick=()=>connectApple(config,button);
+ }).catch(err=>{
+  if(!button.isConnected)return;
+  button.disabled=false;button.textContent='Retry Apple Music';button.onclick=primeAppleButton;
+  text('#connectStatus',err.message||'Apple Music authorization is temporarily unavailable.');
+ });
+}
+async function connectApple({developerToken,instance,expiresAt},button){
+ if(Date.now()>=expiresAt){appleReady=null;primeAppleButton();return;}
+ button.disabled=true;text('#connectStatus','Connecting to Apple Music…');
+ try{
+  // Start Apple authorization inside this click, before awaiting any network work.
   const userToken=await instance.authorize();
+  if(!userToken)throw Error('Apple Music authorization was not completed.');
+  appleSession=true;$('#clearHistory').hidden=false;
   const res=await fetch('https://api.music.apple.com/v1/me/music-summaries?filter%5Byear%5D=latest&views=top-artists,top-songs',{headers:{Authorization:'Bearer '+developerToken,'Music-User-Token':userToken},signal:AbortSignal.timeout(12000)});
-  if(!res.ok)throw Error('Apple Replay could not be loaded ('+res.status+'). Check your subscription, eligibility and developer configuration.');
+  if(!res.ok)throw Error('Apple Replay could not be loaded ('+res.status+'). Check your Apple Music subscription and Replay eligibility.');
   const data=(await res.json()).data?.[0];
   if(!data)throw Error('Apple did not return an eligible Replay year yet.');
   const list=(key)=> (data.views?.[key]?.data||[]).filter(v=>v?.attributes?.name).map(v=>({name:v.attributes.name,detail:v.attributes.artistName||(key==='top-artists'?'Artist':'Song')}));
   const tracks=list('top-songs'),artists=list('top-artists');
   if(!tracks.length&&!artists.length)throw Error('Apple did not return Replay rankings for this account.');
-  state.appleLive={year:data.attributes?.year,tracks,artists};state.source='apple';delete state.hist.apple;choose('apple');render();text('#connectStatus','Apple Replay loaded.');
- }catch(e){text('#connectStatus',e.message||'Unable to sign in with Apple Music.')}finally{b.disabled=false}
+  state.appleLive={year:data.attributes?.year,tracks,artists};state.source='apple';delete state.hist.apple;render();showRecap();
+ }catch(e){if(state.choice==='apple')text('#connectStatus',e.message||'Unable to sign in with Apple Music.')}finally{button.disabled=false}
 }
 function startStory(){
  const {stats:s,imported,live,window:r}=current();
- if(!live&&!s.plays)return;
+ if(!live&&!s?.plays)return;
  const source=sourceNames[state.source];
  const label=live?'Apple Replay · '+(live.year||'latest eligible year'):periodLabel(r);
- const mark=live?'APPLE REPLAY':imported?'IMPORTED HISTORY':'DEMO DATA';
+ const mark=live?'APPLE REPLAY':'IMPORTED HISTORY';
  const tracks=live?live.tracks:s.tracks, artists=live?live.artists:s.artists;
  const top=tracks[0], artist=artists[0];
  const list=tracks.slice(0,5).map(t=>t.name+' · '+t.detail);
@@ -195,4 +240,21 @@ function saveCard(){
  },'image/png');
 }
 $('#saveCard').onclick=saveCard;
-render();
+const appearanceKey='afterspin-appearance-v1', palettes=['orbit','ruby','forest','ocean','chrome'];
+let defaults={};
+try{defaults=JSON.parse(localStorage.getItem(appearanceKey))||{}}catch{}
+const systemDark=window.matchMedia?.('(prefers-color-scheme: dark)');
+let mode=['dark','light'].includes(defaults.mode)?defaults.mode:(systemDark?.matches===false?'light':'dark');
+let palette=palettes.includes(defaults.palette)?defaults.palette:'orbit';
+function applyAppearance(save=false){
+ document.documentElement.dataset.mode=mode;document.documentElement.dataset.palette=palette;
+ $('#palette').value=palette;
+ $('#modeToggle').setAttribute('aria-pressed',String(mode==='dark'));
+ text('#modeLabel',mode==='dark'?'Dark mode':'Light mode');
+ text('#modeIcon',mode==='dark'?'☾':'☀');
+ $('meta[name="theme-color"]').setAttribute('content',mode==='dark'?'#100d19':'#f9f6fb');
+ if(save)try{localStorage.setItem(appearanceKey,JSON.stringify({mode,palette}))}catch{}
+}
+$('#modeToggle').onclick=()=>{mode=mode==='dark'?'light':'dark';applyAppearance(true)};
+$('#palette').onchange=e=>{if(palettes.includes(e.target.value)){palette=e.target.value;applyAppearance(true)}};
+applyAppearance();render();
