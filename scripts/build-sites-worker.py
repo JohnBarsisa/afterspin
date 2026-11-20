@@ -1,4 +1,4 @@
-"""Bundle Afterspin's public assets and Spotify routes into a self-contained Worker."""
+"""Bundle Afterspin's public assets and provider routes into a self-contained Worker."""
 from pathlib import Path
 from base64 import b64encode
 import json
@@ -30,12 +30,20 @@ if (root / ".openai/hosting.json").exists():
     (out / ".openai").mkdir()
     shutil.copyfile(root / ".openai/hosting.json", out / ".openai/hosting.json")
 module = (root / "server/spotify-beta.mjs").read_text(encoding="utf-8")
+apple_module = (root / "server/apple-token-worker.mjs").read_text(encoding="utf-8")
+module += "\n" + apple_module.split("const standaloneAppleMusic=createAppleMusic();", 1)[0]
 suffix = """
 const spotifyRoute=createSpotifyBeta();
+const appleRoute=createAppleMusic([
+  'https://afterspin-listening.jpiyady.chatgpt.site',
+  'https://johnbarsisa.github.io'
+]);
 export default {
   async fetch(request,env) {
     const result=await spotifyRoute(request,env);
     if(result)return result;
+    const appleResult=await appleRoute(request,env);
+    if(appleResult)return appleResult;
     if(!['GET','HEAD'].includes(request.method))return new Response('Method not allowed',{status:405});
     const url=new URL(request.url);
     const key=url.pathname==='/'?'/index.html':url.pathname;

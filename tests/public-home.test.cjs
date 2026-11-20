@@ -2,16 +2,17 @@ const fs=require('node:fs'),vm=require('node:vm');
 const {test}=require('node:test');
 const a=require('node:assert/strict');
 const file=name=>fs.readFileSync(require('node:path').join(__dirname,'..',name),'utf8');
-function harness(appleEndpoint=''){
+function harness(appleEndpoint='',appleConfigured){
  const attrs={};
  const make=(dataset={})=>({dataset,attrs:{},setAttribute(k,v){this.attrs[k]=v;},getAttribute(k){return this.attrs[k]},addEventListener(){},showModal(){this.open=true;},close(){this.open=false;},focus(){},scrollIntoView(){},isConnected:true});
  const map=new Map(), providers=['spotify','apple'].map(provider=>make({provider}));
  const ranges=['week','month','two','three','year','custom'].map(range=>make({range}));
  const document={documentElement:make(),querySelector(s){if(!map.has(s))map.set(s,make());return map.get(s);},querySelectorAll(s){return s==='[data-provider]'?providers:s==='[data-range]'?ranges:[];}};
  const calls=[];
- const config={appleTokenEndpoint:appleEndpoint};
+ const config={appleTokenEndpoint:appleEndpoint,appleStatusEndpoint:appleConfigured===undefined?'':'https://issuer.example/api/apple/status'};
  const fakeApple={async configure(){calls.push('configure')},getInstance(){return {async authorize(){calls.push('authorize');return 'user-token'}}}};
  const fetch=async(url,{headers})=>{
+  if(String(url).endsWith('/api/apple/status'))return {ok:true,json:async()=>({configured:appleConfigured})};
   if(String(url).includes('issuer'))return {ok:true,json:async()=>({developerToken:'developer-token'})};
   a.equal(headers.Authorization,'Bearer developer-token');a.equal(headers['Music-User-Token'],'user-token');
   return {ok:true,json:async()=>({data:[{attributes:{year:2026},views:{'top-songs':{data:[{attributes:{name:'Real Song',artistName:'Real Artist'}}]}}}]})};
@@ -43,7 +44,7 @@ test('both modes and all five themes update the appearance and persist preferenc
  a.equal(JSON.parse(h.attrs['afterspin-appearance-v1']).palette,'chrome');
 });
 test('configured Apple flow requests permission on the Apple screen and then displays the returned data',async()=>{
- const h=harness('https://issuer.example/api/apple-token');
+ const h=harness('https://issuer.example/api/apple-token',true);
  h.providers[1].onclick();
  await new Promise(r=>setImmediate(r));
  a.equal(h.$('#appleAuth').textContent,'Sign in with Apple Music');
@@ -53,4 +54,14 @@ test('configured Apple flow requests permission on the Apple screen and then dis
  a.equal(h.$('#recap').hidden,false);
  a.match(h.$('#summary').innerHTML,/Real Song/);
  a.equal(h.$('#connectDialog').open,false);
+});
+
+test('unconfigured Apple backend leaves sign-in hidden and retains the official Replay link',async()=>{
+ const h=harness('https://issuer.example/api/apple-token',false);
+ h.providers[1].onclick();
+ await new Promise(r=>setImmediate(r));
+ a.equal(h.$('#appleAuth').hidden,true);
+ a.deepEqual(h.calls,[]);
+ a.match(h.$('#connectStatus').textContent,/awaiting Afterspin’s MusicKit credentials/);
+ a.match(h.$('#connectDetails').innerHTML,/Open Apple Music Replay/);
 });

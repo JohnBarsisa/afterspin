@@ -50,13 +50,13 @@ The public homepage has Spotify and Apple Music provider choices, light and dark
 
 **Apple Music:** Without developer setup, the provider button links to Apple’s official Replay and offers a local history import. The built-in authorization flow is ready for configuration and uses only Apple’s own MusicKit sign-in screen. Afterspin requests the latest eligible annual Replay, not arbitrary custom date ranges through Apple.
 
-To enable Apple Music authorization:
+To enable Apple Music authorization on Afterspin:
 
-1. In [Apple Developer](https://developer.apple.com/help/account/capabilities/create-a-media-identifier-and-private-key/), create a Media ID and a MusicKit key. Keep the Team ID, Key ID and the downloaded private key out of the public repository.
-2. Deploy the optional Worker in `server/apple-token-worker.mjs`, or an equivalent HTTPS token issuer. Configure `APPLE_MUSIC_TEAM_ID`, `APPLE_MUSIC_KEY_ID` and `AFTERSPIN_ORIGINS` as Worker environment variables, and `APPLE_MUSIC_PRIVATE_KEY` as a secret. Set `AFTERSPIN_ORIGINS` to the comma-separated exact origins of the live sites, excluding paths and trailing slashes. The Worker returns short-lived, origin-bound ES256 tokens at `/api/apple-token`.
-3. Set `appleTokenEndpoint` in `config.js` to the issuer’s HTTPS URL and redeploy. Verify with an eligible Apple Music subscriber on both mobile and desktop. Test cancellation and an account with no Replay history as well.
+1. In [Apple Developer](https://developer.apple.com/help/account/capabilities/create-a-media-identifier-and-private-key/), have an Account Holder or Admin create an Afterspin Media ID and a MusicKit private key.
+2. In Afterspin’s hosted backend settings, add `APPLE_MUSIC_TEAM_ID` and `APPLE_MUSIC_KEY_ID`, and enter `APPLE_MUSIC_PRIVATE_KEY` as a secret. Do not commit or send the private `.p8` file. The app serves assets and the token issuer from the same Worker. The GitHub Pages frontend calls that backend over HTTPS.
+3. Deploy the saved backend version after updating configuration. At `/api/apple/status`, `configured: true` means the backend can load the signing key. Then test authorization and annual Replay with a real eligible subscriber. Test cancellation and an account without Replay history as well.
 
-No provider credentials or token issuer are provisioned in this repository. GitHub Pages serves static files and is not the place to store signing secrets.
+The issuer binds short-lived ES256 tokens to the exact requesting origin. It supports the hosted Afterspin origin and the GitHub Pages mirror by default. A separate issuer deployment can override the origin allowlist using the comma-separated `AFTERSPIN_ORIGINS` variable. The downloaded offline version keeps only local imports. No key is needed for the site or imports to work, and there is no need to change static source to turn on sign-in.
 
 ### Spotify Top Picks invite-only beta
 

@@ -76,7 +76,7 @@ function choose(source){
  $('#connectDetails').innerHTML=spotify?
  '<p class="provider-note">See the tracks and artists Spotify ranks highest for you in our invite-only Top Picks beta. For play counts and custom dates, import your listening history below.</p><div class="provider-links"><a class="button secondary" href="https://afterspin-listening.jpiyady.chatgpt.site/spotify-top-picks.html">Open Spotify Top Picks beta</a></div>':
  configured?
- '<p class="provider-note">Authorize on Apple’s sign-in screen to load your latest eligible annual Replay into Afterspin.</p><div class="provider-links"><button type="button" class="button primary" id="appleAuth" disabled>Preparing Apple Music…</button></div>':
+ '<p class="provider-note">Connect with Apple to load your latest eligible annual Replay, including the rankings Apple calculated. Afterspin never asks for your password.</p><div class="provider-links"><button type="button" class="button primary" id="appleAuth" disabled>Checking Apple Music…</button><a class="button secondary" href="https://replay.music.apple.com/" target="_blank" rel="noreferrer">Open Apple Music Replay</a></div>':
  '<p class="provider-note">Apple Music sign-in inside Afterspin isn’t set up yet. You can still sign in on Apple’s own Replay site or import your listening history below.</p><div class="provider-links"><a class="button secondary" href="https://replay.music.apple.com/" target="_blank" rel="noreferrer">Open Apple Music Replay</a></div>';
  if(!spotify&&configured)primeAppleButton();
 }
@@ -147,27 +147,39 @@ function prepareApple(){
   if(!endpoint)throw Error('Apple Music isn’t configured for this build.');
   const url=new URL(endpoint,location.href);
   if(url.protocol!=='https:'&&url.origin!==location.origin)throw Error('The Apple Music connection isn’t configured correctly.');
+  const settings=window.AFTERSPIN_CONFIG;
+  if(settings.appleStatusEndpoint){
+   const statusUrl=new URL(settings.appleStatusEndpoint,location.href);
+   if(statusUrl.protocol!=='https:'&&statusUrl.origin!==location.origin)throw Error('The Apple Music connection isn’t configured correctly.');
+   const status=await fetch(statusUrl,{cache:'no-store',signal:AbortSignal.timeout(7000)});
+   if(!status.ok)throw Error('Could not check Apple Music. Try again.');
+   if(!(await status.json()).configured)throw Object.assign(new Error('Apple sign-in is awaiting Afterspin’s MusicKit credentials. You can still open Apple Music Replay or import a history file.'),{code:'music_kit_setup_required'});
+  }
   const auth=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(10000)});
   if(!auth.ok)throw Error('Apple Music authorization is temporarily unavailable. Try again.');
-  const {developerToken}=await auth.json();
+  const {developerToken,expiresAt}=await auth.json();
   if(typeof developerToken!=='string'||!developerToken)throw Error('Apple Music authorization is temporarily unavailable.');
   const kit=await musicKit();
-  await kit.configure({developerToken,app:{name:'Afterspin',build:'1.1.0'}});
-  return {developerToken,instance:kit.getInstance(),expiresAt:Date.now()+10*60*1000};
+  await kit.configure({developerToken,app:{name:'Afterspin',build:'1.2.0'}});
+  const expiry=Number.isFinite(expiresAt)?expiresAt*1000-60000:Date.now()+10*60*1000;
+  if(expiry<=Date.now())throw Error('Apple Music authorization has expired. Try again.');
+  return {developerToken,instance:kit.getInstance(),expiresAt:expiry};
  })().catch(err=>{appleReady=null;throw err});
  return appleReady;
 }
 function primeAppleButton(){
  const button=$('#appleAuth');
- button.textContent='Preparing Apple Music…';button.disabled=true;
+ if(!button)return;
+ button.hidden=false;button.textContent='Checking Apple Music…';button.disabled=true;
  prepareApple().then(config=>{
-  if(!button.isConnected)return;
+  if(!button.isConnected||state.choice!=='apple')return;
   button.disabled=false;button.textContent='Sign in with Apple Music';
   text('#connectStatus','');
   button.onclick=()=>connectApple(config,button);
  }).catch(err=>{
-  if(!button.isConnected)return;
-  button.disabled=false;button.textContent='Retry Apple Music';button.onclick=primeAppleButton;
+  if(!button.isConnected||state.choice!=='apple')return;
+  if(err.code==='music_kit_setup_required'){button.hidden=true;}
+  else{button.disabled=false;button.textContent='Retry Apple Music';button.onclick=primeAppleButton;}
   text('#connectStatus',err.message||'Apple Music authorization is temporarily unavailable.');
  });
 }
